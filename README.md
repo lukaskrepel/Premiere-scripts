@@ -14,7 +14,7 @@ python /location_of_the_script/import_renders_as_image_sequences.py
 > Your Premiere project needs to be in the Edit folder.
 > Running `import_renders_as_image_sequences.py` will:
 > - Import all image sequences from each subfolder of the `Renders` folder into a `RENDERS` bin in your Premiere project.
-> - It will rename the item in Premiere from 'EP01_001_Intro_00001.jpg' to '001_Intro'.
+> - It will rename the item in Premiere from `EP01_001_Intro_00001.jpg` to `001_Intro`.
 > - It wil consolidate duplicate items in Premiere (so you can run it multiple times, for example, after new shots have been rendered).
 - EP01_Pilot
   - Edit
