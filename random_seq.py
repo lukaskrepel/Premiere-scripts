@@ -6,21 +6,36 @@ import time
 ALLOWED_REPETITIVE_COUNT = 3
 CLIP_FOLDER = "VOORCOMP_MP4"
 
+# Define the weights for each category
+CATEGORY_WEIGHTS = {
+	'DinoFacts': 1,
+	'Sketches': 0.6,
+	'Construction': 0.5,
+	'DinoDayCare':0.4,
+	'BabyMatch': 0.3,
+	'Bones': 0.2,
+	'ABC': 0.2
+}
+DEFAULT_WEIGHT = 0.1
+
 
 # Main function to execute the script
 def main():
 	print("---START---")
+	project = pymiere.objects.app.project
 	# Get videos
-	videos = get_videos()
+	videos = get_videos(project)
 	playlist = create_video_playlist(videos)
 	# Print de gegenereerde afspeellijst
 	arrayOfProjectItems = []
 	for video in playlist:
-		print(video)
+		#print(video)
 		arrayOfProjectItems.append(video.projectItem)
 	# Create a new sequence
-	project = pymiere.objects.app.project
-	sequence_name = "CP00_Dinosaurs_Compilation_XX"
+	#project = pymiere.objects.app.project
+	firstVideoCode = playlist[0].filename.split('_')[0]
+	compilationCode = project.name.split('_')[0]
+	sequence_name = compilationCode + "_Dinosaurs_Compilation_" + firstVideoCode
 	project.createNewSequenceFromClips(sequence_name, arrayOfProjectItems)
 	print("---FINISHED---")
 
@@ -36,10 +51,9 @@ class Video:
 		return f"{self.filename} ({time.strftime('%H:%M:%S', time.gmtime(self.duration))} min, {self.category})"
 
 
-def get_videos():
+def get_videos(project):
 	print("Getting videos...")
 	videos = []
-	project = pymiere.objects.app.project
 	for i in range (0, project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
 		if item.name == CLIP_FOLDER:
@@ -68,7 +82,12 @@ def create_video_playlist(videos, target_duration=60*60):
 			if (video.category != previous_category or video.category == "Sketches")
 		]
 
-		if previous_category == "Sketches" and consecutive_sketches >= 3:
+		if previous_category == "Sketches" and consecutive_sketches < 3:
+			valid_videos = [
+				video for video in valid_videos
+				if video.category == "Sketches"
+			]
+		elif previous_category == "Sketches" and consecutive_sketches >= 3:
 			valid_videos = [
 				video for video in valid_videos
 				if video.category != "Sketches"
@@ -77,7 +96,12 @@ def create_video_playlist(videos, target_duration=60*60):
 		if not valid_videos:
 			break
 
-		next_video = random.choice(valid_videos)
+
+		# Get the weights for the valid videos, using the default weight if the category is not defined
+		weights = [CATEGORY_WEIGHTS.get(video.category, DEFAULT_WEIGHT) for video in valid_videos]
+		next_video = random.choices(valid_videos, weights=weights, k=1)[0]
+		#next_video = random.choice(valid_videos)
+		
 		playlist.append(next_video)
 		videos.remove(next_video)
 		total_duration += next_video.duration
