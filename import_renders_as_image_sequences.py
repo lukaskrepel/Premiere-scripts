@@ -12,15 +12,17 @@ def main():
 	if not is_premiere_ready():
 		exit()
 	project = pymiere.objects.app.project  # get premiere project
-	renders_premiere_bin = select_bin(project)
-	renders_server_path = find_renders_folder(project)
+	renders_premiere_bin = find_or_create_renders_premiere_bin(project)
+	imported_sequences = get_paths(renders_premiere_bin)
+	renders_server_path = find_renders_server_folder(project)
 	files_to_import = get_first_files(renders_server_path)
+	files_to_import = remove(files_to_import, imported_sequences)
 	import_as_image_sequences(project, renders_premiere_bin, files_to_import)
 	rename_items(project)
 	consolidate(project)
 	print("---FINISHED---")
 
-def find_renders_folder(project):
+def find_renders_server_folder(project):
 	print("Finding '" + server_folder_name + "' folder on server...")
 	# Split the path into parts based on '/'
 	path_parts = project.path.split('/')
@@ -29,7 +31,7 @@ def find_renders_folder(project):
 	print("'" + server_folder_name + "' path: " + path)
 	return path
 
-def select_bin(project):
+def find_or_create_renders_premiere_bin(project):
 	print("Finding '" + prem_bin_name + "' bin...")
 	found_bin = False
 	for i in range(project.rootItem.children.numItems):
@@ -43,7 +45,21 @@ def select_bin(project):
 			return item
 	if not found_bin:
 		project.rootItem.createBin(prem_bin_name)
-		return select_bin(project)
+		return find_or_create_renders_premiere_bin(project)
+
+def get_paths(bin):
+	print("Getting paths of items inside '" + bin.name + "'...")
+	paths = []
+	for i in range(bin.children.numItems):
+		item = bin.children[i]
+		path = item.getMediaPath()
+		paths.append(path)
+	return paths
+
+
+def remove(files_to_import, imported_sequences):
+	print("Removing already imported paths from list of files to import...")
+	return [path for path in files_to_import if path not in imported_sequences]
 
 def rename_items(project):
 	print("Renaming...")
@@ -97,7 +113,7 @@ def is_premiere_ready():
 	return is_ready
 
 def import_as_image_sequences(project, bin, file_paths):
-	print("Importing image sequences...")
+	print("Importing " + str(len(file_paths)) + " image sequences...")
 	for file in file_paths:
 		print("Importing " + file)
 		this_file = []  # Array with a single file, because we want to import it as an image sequence.
