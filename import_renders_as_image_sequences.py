@@ -3,67 +3,66 @@ import pymiere
 from pymiere.wrappers import time_from_seconds
 from array import array
 
-ServerFolderName = "Renders"
-PremBinName = "RENDERS"
-PotentialPremBinNames = ["renders", "shotrenders", "mohorenders"]
-
+server_folder_name = "Renders"
+prem_bin_name = "RENDERS"
+potential_prem_bin_names = ["renders", "shotrenders", "mohorenders"]
 
 def main():
 	print("---START---")
 	if not is_premiere_ready():
 		exit()
-	project = pymiere.objects.app.project # get premiere project
-	renders_bin = select_bin(project)
-	# Split the path into parts based on '/'
-	path_parts = project.path.split('/')
-	# Construct the new path by joining the necessary parts
-	rendersPath = '/'.join(path_parts[:-2]) + '/' + ServerFolderName
-	files = get_first_files(rendersPath)
-	import_as_image_sequences(project, renders_bin, files)
+	project = pymiere.objects.app.project  # get premiere project
+	renders_premiere_bin = select_bin(project)
+	renders_server_path = find_renders_folder(project)
+	files_to_import = get_first_files(renders_server_path)
+	import_as_image_sequences(project, renders_premiere_bin, files_to_import)
 	rename_items(project)
 	consolidate(project)
 	print("---FINISHED---")
 
+def find_renders_folder(project):
+	print("Finding '" + server_folder_name + "' folder on server...")
+	# Split the path into parts based on '/'
+	path_parts = project.path.split('/')
+	# Construct the new path by joining the necessary parts
+	path = '/'.join(path_parts[:-2]) + '/' + server_folder_name
+	print("'" + server_folder_name + "' path: " + path)
+	return path
 
 def select_bin(project):
-	print("Finding Renders bin...")
+	print("Finding '" + prem_bin_name + "' bin...")
 	found_bin = False
-	for i in range (0, project.rootItem.children.numItems):
+	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
-		for name in PotentialPremBinNames:
+		for name in potential_prem_bin_names:
 			lowercase = item.name.lower()
 			if lowercase == name:
-				item.renameBin(PremBinName)
-		if item.name == PremBinName:
+				item.renameBin(prem_bin_name)
+		if item.name == prem_bin_name:
 			found_bin = True
 			return item
 	if not found_bin:
-		project.rootItem.createBin(PremBinName)
+		project.rootItem.createBin(prem_bin_name)
 		return select_bin(project)
-
 
 def rename_items(project):
 	print("Renaming...")
-	for i in range (0, project.rootItem.children.numItems):
+	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
-		if item.name == PremBinName:
-			for j in range (0, item.children.numItems):
-				childItem = item.children[j]
-				#print("Child item: " + childItem.name)
-				name = childItem.name
-				#input_string = "DF06_032_KeraWhut_00001.png"
+		if item.name == prem_bin_name:
+			for j in range(item.children.numItems):
+				child_item = item.children[j]
+				name = child_item.name
 				first_underscore_index = name.find('_')  # Find the index of the first underscore
 				last_underscore_index = name.rfind('_')  # Find the index of the last underscore
 				if first_underscore_index < last_underscore_index:
 					desired_name = name[first_underscore_index + 1:last_underscore_index]  # Extract the desired substring
-					childItem.name = desired_name
+					child_item.name = desired_name
 					print("Renamed: " + desired_name)
 
-
 def consolidate(project):
-	print("Consolidating dupliactes...")
+	print("Consolidating duplicates...")
 	project.consolidateDuplicates()
-
 
 def get_first_files(directory):
 	print("Finding image sequence paths...")
@@ -87,32 +86,29 @@ def get_first_files(directory):
 	first_files.sort()
 	return first_files
 
-
 def is_premiere_ready():
 	print("Finding Premiere...")
 	# Print if premiere doc is opened
-	isReady = pymiere.objects.app.isDocumentOpen()
-	if isReady:
-		print ('Premiere project is open.')
+	is_ready = pymiere.objects.app.isDocumentOpen()
+	if is_ready:
+		print('Premiere project is open.')
 	else:
-		print ('WARNING: No open Premiere project found!')
-	return isReady
+		print('WARNING: No open Premiere project found!')
+	return is_ready
 
-
-def import_as_image_sequences(project, bin, filePaths):
+def import_as_image_sequences(project, bin, file_paths):
 	print("Importing image sequences...")
-	for file in filePaths:
+	for file in file_paths:
 		print("Importing " + file)
-		this_file = [] # Array with a single file, because we want to import it as an image sequence.
+		this_file = []  # Array with a single file, because we want to import it as an image sequence.
 		this_file.append(file)
 		bin.select()
-		success = project.importFiles(
-			this_file, # can import a list of media (Not if importAsNumberedStills == True!)
-			suppressUI=True,  
-			targetBin=project.getInsertionBin(),  
-			importAsNumberedStills=True
+		project.importFiles(
+			this_file,  # can import a list of media (Not if importAsNumberedStills == True!)
+			suppressUI = True,
+			targetBin = project.getInsertionBin(),
+			importAsNumberedStills = True
 		)
-
 
 # Run main function
 main()
