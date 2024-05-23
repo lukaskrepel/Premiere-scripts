@@ -21,6 +21,7 @@ def main():
 	files = get_first_files(rendersPath)
 	import_as_image_sequences(project, renders_bin, files)
 	rename_items(project)
+	consolidate(project)
 	print("---FINISHED---")
 
 
@@ -31,7 +32,6 @@ def select_bin(project):
 		item = project.rootItem.children[i]
 		for name in PotentialPremBinNames:
 			lowercase = item.name.lower()
-			print ("LOWER" + lowercase)
 			if lowercase == name:
 				item.renameBin(PremBinName)
 		if item.name == PremBinName:
@@ -46,7 +46,7 @@ def rename_items(project):
 	print("Renaming...")
 	for i in range (0, project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
-		if item.name == "Renders":
+		if item.name == PremBinName:
 			for j in range (0, item.children.numItems):
 				childItem = item.children[j]
 				#print("Child item: " + childItem.name)
@@ -57,6 +57,11 @@ def rename_items(project):
 				if first_underscore_index < last_underscore_index:
 					desired_name = name[first_underscore_index + 1:last_underscore_index]  # Extract the desired substring
 					childItem.name = desired_name
+					print("Renamed: " + desired_name)
+
+
+def consolidate(project):
+	print("Consolidating dupliactes...")
 	project.consolidateDuplicates()
 
 
