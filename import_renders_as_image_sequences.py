@@ -2,10 +2,11 @@ import pathlib
 import pymiere
 from pymiere.wrappers import time_from_seconds
 from array import array
+import re
 
 server_folder_name = "Renders"
 prem_bin_name = "RENDERS"
-potential_prem_bin_names = ["renders", "shotrenders", "mohorenders"]
+potential_prem_bin_names = ["renders", "shotrenders", "mohorenders", "goeie renders"]
 
 def main():
 	print("---START---")
@@ -32,7 +33,7 @@ def find_renders_server_folder(project):
 	return path
 
 def find_or_create_renders_premiere_bin(project):
-	print("Finding '" + prem_bin_name + "' bin...")
+	print("Finding '" + prem_bin_name + "' bin in Premiere project...")
 	found_bin = False
 	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
@@ -44,6 +45,7 @@ def find_or_create_renders_premiere_bin(project):
 			found_bin = True
 			return item
 	if not found_bin:
+		print("'" + prem_bin_name + "' not found, creating it.")
 		project.rootItem.createBin(prem_bin_name)
 		return find_or_create_renders_premiere_bin(project)
 
@@ -63,18 +65,36 @@ def remove(files_to_import, imported_sequences):
 
 def rename_items(project):
 	print("Renaming...")
+	episode_code = extract_prefix(project.name)
 	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
 		if item.name == prem_bin_name:
 			for j in range(item.children.numItems):
 				child_item = item.children[j]
 				name = child_item.name
-				first_underscore_index = name.find('_')  # Find the index of the first underscore
-				last_underscore_index = name.rfind('_')  # Find the index of the last underscore
-				if first_underscore_index < last_underscore_index:
-					desired_name = name[first_underscore_index + 1:last_underscore_index]  # Extract the desired substring
+				prefix = episode_code + "_"
+				desired_name = remove_suffix(name)
+				if desired_name.startswith(prefix):
+					desired_name = desired_name[len(prefix):]
+				if name != desired_name:
 					child_item.name = desired_name
 					print("Renamed: " + desired_name)
+
+def extract_prefix(string):
+	# Use regular expression to find the prefix
+	match = re.match(r'^([A-Za-z]+[0-9]+)_', string)
+	if match:
+		return match.group(1)
+	else:
+		return None
+
+def remove_suffix(name):
+	# Regular expression to match the suffix pattern _00001 with any file extension
+	match = re.search(r'_\d+\.\w+$', name)
+	if match:
+		return name[:match.start()]
+	else:
+		return name
 
 def consolidate(project):
 	print("Consolidating duplicates...")
