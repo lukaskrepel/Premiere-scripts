@@ -40,6 +40,7 @@ def main():
 	move_sketches_audio_down_a_layer(project.activeSequence)
 	remove_temp_video_track(qe_project)
 	insert_sketches_loop_music(project)
+	add_transitions(qe_project)
 	remove_empty_tracks(qe_project)
 	print("---FINISHED---")
 
@@ -178,6 +179,29 @@ def insert_sketches_loop_music(project):
 		music_item.setInPoint(0, 2) # 2 = Audio only
 		music_item.setOutPoint(duration, 2) # 2 = Audio only
 		music_track.insertClip(music_item, in_point / TICKS_PER_SECONDS)
+
+def add_transitions(qe_project):
+	print("Adding transitions...")
+	qe_sequence = qe_project.getActiveSequence()
+	qe_video_tracks = []
+	qe_audio_tracks = []
+	qe_video_tracks.append(qe_sequence.getVideoTrackAt(0)) # VoorComp Video
+	qe_audio_tracks.append(qe_sequence.getAudioTrackAt(0)) # VoorComp SFX + Sketches music
+	qe_audio_tracks.append(qe_sequence.getAudioTrackAt(1)) # Sketches SFX
+	for qe_video_track in qe_video_tracks:
+		print("Adding video transitions...")
+		for j in range(qe_video_track.numItems - 2):
+			item = qe_video_track.getItemAt(j)
+			video_transition_to_apply = qe_project.getVideoTransitionByName("Cross Dissolve")
+			time = '00;00;10;00'
+			item.addTransition(video_transition_to_apply, False, time)
+	for qe_audio_track in qe_audio_tracks:
+		print("Adding audio transitions...")
+		for j in range(qe_audio_track.numItems - 2):
+			item = qe_audio_track.getItemAt(j)
+			audio_transition_to_apply = qe_project.getAudioTransitionByName("Exponential Fade")
+			time = '00;00;10;00'
+			item.addTransition(audio_transition_to_apply, False, time)
 
 def remove_empty_tracks(qe_project):
 	print("Removing empty tracks from sequence...")
