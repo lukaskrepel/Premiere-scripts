@@ -59,6 +59,9 @@ def main():
 	insert_sketches_loop_music(project)
 	add_transitions(qe_project)
 	remove_empty_tracks(qe_project)
+	set_in_out_point(project.activeSequence)
+	send_sequence_to_media_encoder(project)
+	save_and_close_project(project)
 	print("---FINISHED---")
 
 def add_to_playlist(playlist, item, pos):
@@ -276,6 +279,40 @@ def remove_empty_tracks(qe_project):
 	qe_sequence = qe_project.getActiveSequence()
 	qe_sequence.removeEmptyVideoTracks()
 	qe_sequence.removeEmptyAudioTracks()
+
+def set_in_out_point(sequence):
+	print("Setting in/out points for sequence...")
+	sequence.setInPoint(0)
+	sequence.setOutPoint(sequence.end)
+
+def send_sequence_to_media_encoder(project):
+	print("Sending sequence to Adobe Media Encoder...")
+	output_path = project.path
+	output_path = output_path.replace("Compilations", "FINALS")
+	pattern = r'_v\d+_.+\..+$' #pattern = r'_([^_]+)_v\d+_.+\..+$'
+	output_path = re.sub(pattern, ".mp4", output_path)
+	preset_path = "/Applications/Adobe Media Encoder 2024/Adobe Media Encoder 2024.app/Contents/MediaIO/systempresets/4E49434B_48323634/YouTube 1080p HD.epr"
+	print(f"Destination: {output_path}")
+	print(f"Using preset: {preset_path}")
+	# ensure Media Encoder is started
+	pymiere.objects.app.encoder.launchEncoder()
+	# add sequence to Media Encoder queue
+	job_id = pymiere.objects.app.encoder.encodeSequence(
+	    project.activeSequence,
+	    output_path,  # path of the exported file
+	    preset_path,  # path of the export preset file
+	    pymiere.objects.app.encoder.ENCODE_IN_TO_OUT,  # what part of the sequence to export: ENCODE_ENTIRE / ENCODE_IN_TO_OUT / ENCODE_WORKAREA
+	    removeOnCompletion=False,  # clear this job of media encoder render queue on completion
+	    startQueueImmediately=False  # seem not to be working in Premiere 2017? Untested on versions above
+	)
+	# press green play button in the queue list to start encoding everything
+	pymiere.objects.app.encoder.startBatch()
+
+def save_and_close_project(project):
+	print("Saving project...")
+	project.save()
+	print("Closing project...")
+	project.closeDocument()
 
 # Run main function
 main()
