@@ -16,7 +16,7 @@ def main():
 	renders_premiere_bin = find_or_create_renders_premiere_bin(project)
 	imported_sequences = get_paths(renders_premiere_bin)
 	renders_server_path = find_renders_server_folder(project)
-	files_to_import = get_first_files(renders_server_path)
+	files_to_import = get_first_image_files(renders_server_path)
 	files_to_import = remove(files_to_import, imported_sequences)
 	import_as_image_sequences(project, renders_premiere_bin, files_to_import)
 	rename_items(project)
@@ -100,24 +100,27 @@ def consolidate(project):
 	print("Consolidating duplicates...")
 	project.consolidateDuplicates()
 
-def get_first_files(directory):
+def get_first_image_files(directory):
 	print("Finding image sequence paths...")
 	"""
-	Get the first file (alphabetically sorted) from each subdirectory.
+	Get the first image file (alphabetically sorted) from each subdirectory and its subdirectories.
 	
 	Args:
 	- directory: Path to the directory.
 	
 	Returns:
-	- List of paths to the first file from each subdirectory.
+	- List of paths to the first image file from each subdirectory and its subdirectories.
 	"""
 	first_files = []
-	path = pathlib.Path(directory)
-	for item in path.iterdir():
-		if item.is_dir():
-			sub_files = list(item.glob('*'))
-			if sub_files:
-				first_files.append(str(min(sub_files)))
+	root_path = pathlib.Path(directory)
+	
+	for subfolder in root_path.rglob('*'):
+		if subfolder.is_dir():
+			# Gather all image files in the subdirectory
+			image_files = sorted([f for f in subfolder.iterdir() if f.suffix.lower() in {'.png', '.jpg', '.jpeg'}])
+			if image_files:
+				first_files.append(str(image_files[0]))  # Get the first image file
+	
 	# Sort list alphabetically
 	first_files.sort()
 	return first_files
