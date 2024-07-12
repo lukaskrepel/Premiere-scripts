@@ -41,6 +41,8 @@ CATEGORY_WEIGHTS = {
 }
 DEFAULT_WEIGHT = 0.1
 
+TARGET_HOURS = 1.0
+
 # Main function to execute the script
 def main():
 	print("---START---")
@@ -101,6 +103,7 @@ def find_item_in_folder(project, folder_name, file_name):
 			for j in range(item.children.numItems):
 				child_item = item.children[j]
 				if child_item.name == file_name:
+					child_item.setScaleToFrameSize()
 					return child_item
 	return None
 
@@ -139,7 +142,7 @@ def get_videos(project):
 
 
 # Function to create a video playlist with weighted random selection
-def create_video_playlist(videos, first_video_code="", target_duration=60*60):
+def create_video_playlist(videos, first_video_code="", target_duration=60*60*TARGET_HOURS):
 	print("Creating playlist...")
 	playlist = []
 	total_duration = 0
