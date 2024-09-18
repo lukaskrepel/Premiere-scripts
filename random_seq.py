@@ -17,6 +17,8 @@ INTRO_ITEM_NAME = "INTRO"
 OUTRO_ITEM_NAME = "OUTRO"
 BUMPERS_FOLDER_NAME = "BUMPERS & WIPES"
 SEQUENCES_FOLDER_NAME = "PREM_SEQS"
+# TAGS = { "Dinosaurs", "Animals", "Vehicles", "Halloween", "Christmas", "Easter", "NewYear", "Generic" }
+TAGS = { "Dinosaurs" }
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
 TICKS_PER_SECONDS = 254016000000
@@ -33,11 +35,14 @@ CATEGORY_WEIGHTS = {
 	'ABC': 0.2,
 	'MysteryAnimals': 0.2,
 	'BarnDoors': 0.2,
+	'CarWash': 0.2,
+	'AnimalSounds': 0.2,
 	'WrongHeads': 0.1,
 	'Drawing and Coloring': 0.1,
 	'Memory': 0.1,
 	'Puzzle': 0.1,
-	'Counting': 0.1
+	'Counting': 0.1,
+	'Colors': 0.1
 }
 DEFAULT_WEIGHT = 0.1
 
@@ -136,7 +141,19 @@ def get_videos(project):
 					grandChildItem = childItem.children[k]
 					grandChildItem.setScaleToFrameSize()
 					duration = (grandChildItem.getOutPoint(1).seconds - grandChildItem.getInPoint(1).seconds)
-					videos.append(Video(grandChildItem.name, duration, category, grandChildItem))
+					# CHECK DESCRIPTION:
+					metadata = grandChildItem.getProjectMetadata()
+					# Regular expression to capture the comment part
+					comment = re.search(r'<premierePrivateProjectMetaData:Column\.PropertyText\.Comment>(.*?)</premierePrivateProjectMetaData:Column\.PropertyText\.Comment>', metadata)
+					found_tags = ""
+					if comment:
+						found_tags = comment.group(1)
+					else:
+						print("----- ITEM NOT TAGGED -----", grandChildItem.name)
+					# Check if any of the tags are in the comment
+					tags_found = [tag for tag in TAGS if tag in found_tags]
+					if tags_found:
+						videos.append(Video(grandChildItem.name, duration, category, grandChildItem))
 	print(f"Found {len(videos)} videos in {len(categories)} categories.")
 	return videos
 
@@ -149,6 +166,7 @@ def create_video_playlist(videos, first_video_code="", target_duration=60*60*TAR
 	previous_category = None
 	consecutive_sketches = 0
 	while videos and total_duration < target_duration:
+		print("total_duration: " + time.strftime('%H:%M:%S', time.gmtime(total_duration)))
 		# Filter valid videos based on the previous category and sketch constraints
 		valid_videos = [
 			video for video in videos
@@ -183,7 +201,7 @@ def create_sequence(project, playlist):
 	# Create a new sequence
 	firstVideoCode = playlist[0].filename.split('_')[0]
 	compilationCode = project.name.split('_')[0]
-	sequence_name = compilationCode + "_Dinosaurs_Compilation_" + firstVideoCode
+	sequence_name = compilationCode + "_" + next(iter(TAGS)) + "_Compilation_" + firstVideoCode
 	arrayOfProjectItems = []
 	for video in playlist:
 		arrayOfProjectItems.append(video.projectItem)
