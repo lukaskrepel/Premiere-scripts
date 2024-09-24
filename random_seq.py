@@ -13,12 +13,11 @@ ALLOWED_REPETITIVE_COUNT = 3
 CLIP_FOLDER_NAME = "VOORCOMP_MP4"
 AUDIO_FOLDER_NAME = "AUDIO"
 SKETCH_MUSIC_ITEM_NAME = "Sketches_Score_EndlessLoop.wav"
-INTRO_ITEM_NAME = "INTRO"
-OUTRO_ITEM_NAME = "OUTRO"
-BUMPERS_FOLDER_NAME = "BUMPERS & WIPES"
+INTRO_FOLDER_NAME = "INTRO_MP4"
+OUTRO_FOLDER_NAME = "OUTRO_MP4"
 SEQUENCES_FOLDER_NAME = "PREM_SEQS"
-# TAGS = { "Dinosaurs", "Animals", "Vehicles", "Halloween", "Christmas", "Easter", "NewYear", "Generic" }
-TAGS = { "Dinosaurs" }
+# TAGS = [ "Dinosaurs", "Animals", "Vehicles", "Halloween", "Christmas", "Easter", "NewYear", "Generic" ]
+TAGS = [ "Dinosaurs" ] # <-- List can contain multiple tags. Adjust this accordingly
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
 TICKS_PER_SECONDS = 254016000000
@@ -46,7 +45,7 @@ CATEGORY_WEIGHTS = {
 }
 DEFAULT_WEIGHT = 0.1
 
-TARGET_HOURS = 1.0
+TARGET_HOURS = 2.0
 
 # Main function to execute the script
 def main():
@@ -56,9 +55,9 @@ def main():
 	first_video_code = extract_first_video_code(project.name)
 	videos = get_videos(project)
 	playlist = create_video_playlist(videos, first_video_code)
-	intro_item = find_item_in_folder(project, BUMPERS_FOLDER_NAME, INTRO_ITEM_NAME)
+	intro_item = find_intro_outro_in_folder(project, INTRO_FOLDER_NAME, TAGS[0])
 	playlist = add_to_playlist(playlist, intro_item, 3)
-	outro_item = find_item_in_folder(project, BUMPERS_FOLDER_NAME, OUTRO_ITEM_NAME)
+	outro_item = find_intro_outro_in_folder(project, OUTRO_FOLDER_NAME, TAGS[0])
 	playlist = add_to_playlist(playlist, outro_item, len(playlist))
 	create_sequence(project, playlist)
 	move_sketches_audio_down_a_layer(project.activeSequence)
@@ -67,6 +66,7 @@ def main():
 	add_transitions(qe_project)
 	remove_empty_tracks(qe_project)
 	set_in_out_point(project.activeSequence)
+	# Exporting
 	send_sequence_to_media_encoder(project)
 	save_and_close_project(project)
 	print("---FINISHED---")
@@ -112,6 +112,30 @@ def find_item_in_folder(project, folder_name, file_name):
 					return child_item
 	return None
 
+def find_intro_outro_in_folder(project, folder_name, tag):
+	print("Getting intro/outro... tagged: '" + tag + "'")
+	for i in range(project.rootItem.children.numItems):
+		item = project.rootItem.children[i]
+		if item.name == folder_name:
+			for j in range(item.children.numItems):
+				child_item = item.children[j]
+				# CHECK DESCRIPTION:
+				metadata = child_item.getProjectMetadata()
+				# Regular expression to capture the comment part
+				comment = re.search(r'<premierePrivateProjectMetaData:Column\.PropertyText\.Comment>(.*?)</premierePrivateProjectMetaData:Column\.PropertyText\.Comment>', metadata)
+				found_tags = ""
+				if comment:
+					found_tags = comment.group(1)
+				else:
+					print("----- INTRO/OUTRO NOT TAGGED -----", child_item.name)
+				# Check if any of the tags are in the comment
+				tags_found = tag in found_tags
+				if tags_found:
+					child_item.setScaleToFrameSize()
+					return child_item
+	# we haven't found anything with this tag:
+	return find_intro_outro_in_folder(project, folder_name, "Generic")
+
 def find_item(item, item_name):
 	#print(f"Searching item {item_name}...")
 	if item.name == item_name:
@@ -140,6 +164,7 @@ def get_videos(project):
 				for k in range(childItem.children.numItems):
 					grandChildItem = childItem.children[k]
 					grandChildItem.setScaleToFrameSize()
+					grandChildItem.name = grandChildItem.name.replace("_VoorComp.mp4", "") #????
 					duration = (grandChildItem.getOutPoint(1).seconds - grandChildItem.getInPoint(1).seconds)
 					# CHECK DESCRIPTION:
 					metadata = grandChildItem.getProjectMetadata()
@@ -166,7 +191,7 @@ def create_video_playlist(videos, first_video_code="", target_duration=60*60*TAR
 	previous_category = None
 	consecutive_sketches = 0
 	while videos and total_duration < target_duration:
-		print("total_duration: " + time.strftime('%H:%M:%S', time.gmtime(total_duration)))
+		# print("total_duration: " + time.strftime('%H:%M:%S', time.gmtime(total_duration)))
 		# Filter valid videos based on the previous category and sketch constraints
 		valid_videos = [
 			video for video in videos
@@ -201,7 +226,7 @@ def create_sequence(project, playlist):
 	# Create a new sequence
 	firstVideoCode = playlist[0].filename.split('_')[0]
 	compilationCode = project.name.split('_')[0]
-	sequence_name = compilationCode + "_" + next(iter(TAGS)) + "_Compilation_" + firstVideoCode
+	sequence_name = compilationCode + "_" + TAGS[0] + "_Compilation_" + firstVideoCode
 	arrayOfProjectItems = []
 	for video in playlist:
 		arrayOfProjectItems.append(video.projectItem)
