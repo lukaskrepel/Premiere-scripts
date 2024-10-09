@@ -1,9 +1,9 @@
 import pymiere
 from pymiere import wrappers
-from pymiere.wrappers import timecode_from_seconds
-from pymiere.wrappers import get_item_recursive
-from pymiere.wrappers import move_clip
-from pymiere.wrappers import time_from_seconds
+# from pymiere.wrappers import timecode_from_seconds
+# from pymiere.wrappers import get_item_recursive
+# from pymiere.wrappers import move_clip
+# from pymiere.wrappers import time_from_seconds
 import random
 import time
 import re
@@ -17,7 +17,9 @@ INTRO_FOLDER_NAME = "INTRO_MP4"
 OUTRO_FOLDER_NAME = "OUTRO_MP4"
 SEQUENCES_FOLDER_NAME = "PREM_SEQS"
 # TAGS = [ "Dinosaurs", "Animals", "Vehicles", "Halloween", "Christmas", "Easter", "NewYear", "Generic" ]
-TAGS = [ "Dinosaurs" ] # <-- List can contain multiple tags. Adjust this accordingly
+# TAGS = [ "Vehicles" ] # <-- List can contain multiple tags. Adjust this accordingly
+# TODO remove capitalization probably, it gets it from the projectname now "VehiclesDinosaurs" f.e.
+
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
 TICKS_PER_SECONDS = 254016000000
@@ -53,7 +55,15 @@ def main():
 	project = pymiere.objects.app.project
 	qe_project = pymiere.objects.qe.project
 	first_video_code = extract_first_video_code(project.name)
-	videos = get_videos(project)
+
+	# Split by underscore (_) and extract the relevant part
+	parts = project.name.split("_")
+	compilationCode = parts[0]
+	tags_string = parts[1] # "VehiclesDinosaurs"
+	# Add spaces before capital letters and split into tags
+	TAGS = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
+
+	videos = get_videos(project, TAGS)
 	playlist = create_video_playlist(videos, first_video_code)
 	intro_item = find_intro_outro_in_folder(project, INTRO_FOLDER_NAME, TAGS[0])
 	playlist = add_to_playlist(playlist, intro_item, 3)
@@ -149,7 +159,7 @@ def find_item(item, item_name):
 	return None
 
 # Function to get all videos from the project
-def get_videos(project):
+def get_videos(project, TAGS):
 	print("Getting videos...")
 	videos = []
 	categories = set()
@@ -225,8 +235,16 @@ def create_video_playlist(videos, first_video_code="", target_duration=60*60*TAR
 def create_sequence(project, playlist):
 	# Create a new sequence
 	firstVideoCode = playlist[0].filename.split('_')[0]
-	compilationCode = project.name.split('_')[0]
-	sequence_name = compilationCode + "_" + TAGS[0] + "_Compilation_" + firstVideoCode
+	# Split by underscore (_) and extract the relevant part
+	parts = project.name.split("_")
+	compilationCode = parts[0]
+	tags_string = parts[1] # "VehiclesDinosaurs"
+	# Add spaces before capital letters and split into tags
+	TAGS = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
+
+
+
+	sequence_name = compilationCode + "_" + tags_string + "_Compilation_" + firstVideoCode
 	arrayOfProjectItems = []
 	for video in playlist:
 		arrayOfProjectItems.append(video.projectItem)
