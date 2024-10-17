@@ -28,7 +28,7 @@ def remove_unused(project):
 	for item in all_items:
 		if not item.isSequence():
 			if not is_item_used(item):
-				print(f"Moving unused item: {item.name} to {AUDIO_FOLDER_NAME}")
+				print(f"Moving unused item: {item.name} to {TRASH_FOLDER_NAME}")
 				item.moveBin(trash_bin)
 	delete_empty_bins(project)
 
