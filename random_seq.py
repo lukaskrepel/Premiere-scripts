@@ -1,12 +1,15 @@
 import pymiere
 from pymiere import wrappers
-# from pymiere.wrappers import timecode_from_seconds
-# from pymiere.wrappers import get_item_recursive
-# from pymiere.wrappers import move_clip
-# from pymiere.wrappers import time_from_seconds
 import random
 import time
 import re
+
+import LK_pymiere # TODO implement this all over
+
+# IMPORTANT!
+# Premiere files should use this filename convention:
+# "CP001_DinosaursHalloween_ABC01_v001_L.prproj"
+# (compilation_code / tags_capilatized / first_episode_code / file_version / author_initial / extension)
 
 # Constants
 ALLOWED_REPETITIVE_COUNT = 3
@@ -16,10 +19,8 @@ SKETCH_MUSIC_ITEM_NAME = "Sketches_Score_EndlessLoop.wav"
 INTRO_FOLDER_NAME = "INTRO_MP4"
 OUTRO_FOLDER_NAME = "OUTRO_MP4"
 SEQUENCES_FOLDER_NAME = "PREM_SEQS"
-# TAGS = [ "Dinosaurs", "Animals", "Vehicles", "Halloween", "Christmas", "Easter", "NewYear", "Generic" ]
-# TAGS = [ "Vehicles" ] # <-- List can contain multiple tags. Adjust this accordingly
-# TODO remove capitalization probably, it gets it from the projectname now "VehiclesDinosaurs" f.e.
-
+PRESET_PATH_FINAL = "/Volumes/megagamma_data/Club Baboo/Resources/AdobeMediaEncoder/Presets/YouTube 1080p HD.epr"
+ALL_TAGS = "GenericAnimalsDinosaursVehiclesSongsHalloweenChristmasEasterNewyearDinorangers" # <-- When using CP001_ClubBaboo_etc it uses all tags.
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
 TICKS_PER_SECONDS = 254016000000
@@ -47,27 +48,33 @@ CATEGORY_WEIGHTS = {
 }
 DEFAULT_WEIGHT = 0.1
 
-TARGET_HOURS = 2.0
+TARGET_HOURS = 1.0
 
 # Main function to execute the script
 def main():
 	print("---START---")
-	project = pymiere.objects.app.project
+	if not LK_pymiere.is_premiere_ready():
+		exit()
+	project = LK_pymiere.get_project()
+	# project = pymiere.objects.app.project
 	qe_project = pymiere.objects.qe.project
-	first_video_code = extract_first_video_code(project.name)
-
 	# Split by underscore (_) and extract the relevant part
 	parts = project.name.split("_")
-	compilationCode = parts[0]
+	compilation_code = parts[0]
 	tags_string = parts[1] # "VehiclesDinosaurs"
+	# --
+	if tags_string == "ClubBaboo":
+		tags_string = ALL_TAGS
+	# --
+	first_video_code = parts[3]
 	# Add spaces before capital letters and split into tags
-	TAGS = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
+	tags = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
 
-	videos = get_videos(project, TAGS)
+	videos = get_videos(project, tags)
 	playlist = create_video_playlist(videos, first_video_code)
-	intro_item = find_intro_outro_in_folder(project, INTRO_FOLDER_NAME, TAGS[0])
+	intro_item = find_intro_outro_in_folder(project, INTRO_FOLDER_NAME, tags[0])
 	playlist = add_to_playlist(playlist, intro_item, 3)
-	outro_item = find_intro_outro_in_folder(project, OUTRO_FOLDER_NAME, TAGS[0])
+	outro_item = find_intro_outro_in_folder(project, OUTRO_FOLDER_NAME, tags[0])
 	playlist = add_to_playlist(playlist, outro_item, len(playlist))
 	create_sequence(project, playlist)
 	move_sketches_audio_down_a_layer(project.activeSequence)
@@ -97,19 +104,6 @@ class Video:
 	def __repr__(self):
 		return f"{self.filename} ({time.strftime('%H:%M:%S', time.gmtime(self.duration))} min, {self.category})"
 
-def extract_first_video_code(filename):
-	# Define the regular expression pattern
-	pattern = r'_([^_]+)_v\d+_.+\..+$'
-	# Search for the pattern in the filename
-	match = re.search(pattern, filename)
-	# If a match is found, return the captured group
-	if match:
-		first_video_code = match.group(1)
-		print("First Video Code: " + first_video_code)
-		return first_video_code
-	else:
-		return "no code found"
-
 def find_item_in_folder(project, folder_name, file_name):
 	print("Getting file...")
 	for i in range(project.rootItem.children.numItems):
@@ -123,7 +117,7 @@ def find_item_in_folder(project, folder_name, file_name):
 	return None
 
 def find_intro_outro_in_folder(project, folder_name, tag):
-	print("Getting intro/outro... tagged: '" + tag + "'")
+	print("Getting intro/outro... (tagged: '" + tag + "')")
 	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
 		if item.name == folder_name:
@@ -142,6 +136,7 @@ def find_intro_outro_in_folder(project, folder_name, tag):
 				tags_found = tag in found_tags
 				if tags_found:
 					child_item.setScaleToFrameSize()
+					print(f"Got: {child_item.name}")
 					return child_item
 	# we haven't found anything with this tag:
 	return find_intro_outro_in_folder(project, folder_name, "Generic")
@@ -159,7 +154,7 @@ def find_item(item, item_name):
 	return None
 
 # Function to get all videos from the project
-def get_videos(project, TAGS):
+def get_videos(project, tags):
 	print("Getting videos...")
 	videos = []
 	categories = set()
@@ -170,7 +165,7 @@ def get_videos(project, TAGS):
 				childItem = item.children[j]
 				category = childItem.name
 				categories.add(category)  # Add category to the set
-				print("Category: " + category)
+				print("- Category: " + category)
 				for k in range(childItem.children.numItems):
 					grandChildItem = childItem.children[k]
 					grandChildItem.setScaleToFrameSize()
@@ -186,10 +181,10 @@ def get_videos(project, TAGS):
 					else:
 						print("----- ITEM NOT TAGGED -----", grandChildItem.name)
 					# Check if any of the tags are in the comment
-					tags_found = [tag for tag in TAGS if tag in found_tags]
+					tags_found = [tag for tag in tags if tag in found_tags]
 					if tags_found:
 						videos.append(Video(grandChildItem.name, duration, category, grandChildItem))
-	print(f"Found {len(videos)} videos in {len(categories)} categories.")
+	print(f"- Found {len(videos)} videos in {len(categories)} categories.")
 	return videos
 
 
@@ -229,7 +224,7 @@ def create_video_playlist(videos, first_video_code="", target_duration=60*60*TAR
 		else:
 			consecutive_sketches = 0
 		previous_category = next_video.category
-	print("Playlist duration: " + time.strftime('%H:%M:%S', time.gmtime(total_duration)))
+	print("- Playlist duration: " + time.strftime('%H:%M:%S', time.gmtime(total_duration)))
 	return playlist
 
 def create_sequence(project, playlist):
@@ -237,14 +232,14 @@ def create_sequence(project, playlist):
 	firstVideoCode = playlist[0].filename.split('_')[0]
 	# Split by underscore (_) and extract the relevant part
 	parts = project.name.split("_")
-	compilationCode = parts[0]
+	compilation_code = parts[0]
 	tags_string = parts[1] # "VehiclesDinosaurs"
 	# Add spaces before capital letters and split into tags
-	TAGS = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
+	tags = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
 
 
 
-	sequence_name = compilationCode + "_" + tags_string + "_Compilation_" + firstVideoCode
+	sequence_name = compilation_code + "_" + tags_string + "_Compilation_" + firstVideoCode
 	arrayOfProjectItems = []
 	for video in playlist:
 		arrayOfProjectItems.append(video.projectItem)
@@ -260,7 +255,7 @@ def create_sequence(project, playlist):
 		if item.name == sequence_name:
 			seq_item = item
 		if bin_item != None and seq_item != None:
-			print("Moving new sequence into premiere bin...")
+			print("- Moving new sequence into premiere bin...")
 			seq_item.moveBin(bin_item)
 
 def move_sketches_audio_down_a_layer(sequence):
@@ -286,7 +281,7 @@ def insert_sketches_loop_music(project):
 	print("Insert sketches loop music...")
 	#music_item = get_music(project)
 	music_item = find_item_in_folder(project, AUDIO_FOLDER_NAME, SKETCH_MUSIC_ITEM_NAME)
-	print("Music_item: " + music_item.name)
+	print("- Music_item: " + music_item.name)
 	sequence = project.activeSequence
 	video_track = sequence.videoTracks[0]
 	music_track = sequence.audioTracks[0]
@@ -355,9 +350,9 @@ def send_sequence_to_media_encoder(project):
 	output_path = output_path.replace("Compilations", "FINALS")
 	pattern = r'_v\d+_.+\..+$' #pattern = r'_([^_]+)_v\d+_.+\..+$'
 	output_path = re.sub(pattern, ".mp4", output_path)
-	preset_path = "/Applications/Adobe Media Encoder 2024/Adobe Media Encoder 2024.app/Contents/MediaIO/systempresets/4E49434B_48323634/YouTube 1080p HD.epr"
-	print(f"Destination: {output_path}")
-	print(f"Using preset: {preset_path}")
+	preset_path = PRESET_PATH_FINAL
+	print(f"- Destination: {output_path}")
+	print(f"- Using preset: {preset_path}")
 	# ensure Media Encoder is started
 	pymiere.objects.app.encoder.launchEncoder()
 	# add sequence to Media Encoder queue
