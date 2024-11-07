@@ -4,6 +4,7 @@ import time
 import re
 import datetime
 import os
+import platform
 
 # Constants
 PRESET_PATH_FINAL = "/Volumes/megagamma_data/Club Baboo/Resources/AdobeMediaEncoder/Presets/YouTube 1080p HD.epr"
@@ -26,8 +27,8 @@ def main():
     unmute_all_audio(sequence)
 
     # Send sequences to Adobe Media Encoder with different presets
-    send_to_media_encoder(sequence, project, "MiniDaily", PRESET_PATH_MINIDAILY)
-    send_to_media_encoder(sequence, project, "Final", PRESET_PATH_FINAL)
+    send_to_media_encoder(sequence, project, "MiniDaily", convert_path(PRESET_PATH_MINIDAILY))
+    send_to_media_encoder(sequence, project, "Final", convert_path(PRESET_PATH_FINAL))
 
     # Start batch encoding
     pymiere.objects.app.encoder.startBatch()
@@ -98,6 +99,41 @@ def send_to_media_encoder(sequence, project, output_type, preset_path):
         removeOnCompletion=False,  # Keep job in queue after completion
         startQueueImmediately=False
     )
+
+def convert_path(path):
+    system = platform.system()
+    
+    # Define mappings for special drive paths
+    drive_map = {
+        "Y": "megagamma_data",
+        "Z": "omicron_data"
+    }
+    volume_map = {v: k for k, v in drive_map.items()}  # Reverse mapping for macOS to Windows
+
+    if system == "Windows":
+        # Convert macOS path to Windows format
+        if path.startswith("/Volumes/"):
+            volume_name = path.split("/")[2]
+            drive_letter = volume_map.get(volume_name, volume_name[0].upper())
+            windows_path = f"{drive_letter}:\\" + "\\".join(path.split("/")[3:])
+            print("Converted path to Windows format:", windows_path)
+            return windows_path
+
+    elif system == "Darwin":  # macOS
+        # Convert Windows path to macOS format
+        if ":" in path:
+            drive_letter = path[0].upper()
+            volume_name = drive_map.get(drive_letter, drive_letter)
+            mac_path = f"/Volumes/{volume_name}/" + "/".join(path.split("\\")[1:])
+            print("Converted path to macOS format:", mac_path)
+            return mac_path
+
+    else:
+        raise OSError("Unsupported operating system")
+
+    # If no conversion is needed, return the original path
+    return path
+
 
 # Run main function
 main()
