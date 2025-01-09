@@ -3,6 +3,7 @@ from pymiere import wrappers
 import random
 import time
 import re
+import platform
 
 import LK_pymiere # TODO implement this all over
 
@@ -19,7 +20,7 @@ SKETCH_MUSIC_ITEM_NAME = "Sketches_Score_EndlessLoop.wav"
 INTRO_FOLDER_NAME = "INTRO_MP4"
 OUTRO_FOLDER_NAME = "OUTRO_MP4"
 SEQUENCES_FOLDER_NAME = "PREM_SEQS"
-PRESET_PATH_FINAL = "/Volumes/megagamma_data/Club Baboo/Resources/AdobeMediaEncoder/Presets/YouTube 1080p HD.epr"
+PRESET_PATH_FINAL = "/Volumes/megagamma_data/Club Baboo/Resources/AdobeMediaEncoder/Presets/YouTube 1080p HD.epr" # <-- /Users/'yourname'/Documents/Adobe/Adobe Media Encoder/25.0/Presets
 ALL_TAGS = "GenericAnimalsDinosaursVehiclesSongsHalloweenChristmasEasterNewyearDinorangers" # <-- When using CP001_ClubBaboo_etc it uses all tags.
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
@@ -27,7 +28,7 @@ TICKS_PER_SECONDS = 254016000000
 
 # Define the weights for each category
 CATEGORY_WEIGHTS = {
-	'DinoFacts': 1,
+	'DinoFacts': 2,
 	'Sketches': 0.6,
 	'MagicShow': 0.6,
 	'Construction': 0.5,
@@ -48,15 +49,14 @@ CATEGORY_WEIGHTS = {
 }
 DEFAULT_WEIGHT = 0.1
 
-TARGET_HOURS = 1.0
+TARGET_HOURS = 0.5
 
 # Main function to execute the script
 def main():
 	print("---START---")
 	if not LK_pymiere.is_premiere_ready():
 		exit()
-	project = LK_pymiere.get_project()
-	# project = pymiere.objects.app.project
+	project = LK_pymiere.get_project() # project = pymiere.objects.app.project
 	qe_project = pymiere.objects.qe.project
 	# Split by underscore (_) and extract the relevant part
 	parts = project.name.split("_")
@@ -66,7 +66,10 @@ def main():
 	if tags_string == "ClubBaboo":
 		tags_string = ALL_TAGS
 	# --
-	first_video_code = parts[3]
+	print("Split project name intro parts: " + project.name + " -> ")
+	for part in parts:
+		print(" - " + part)
+	first_video_code = parts[2]
 	# Add spaces before capital letters and split into tags
 	tags = re.findall(r'[A-Z][a-z]*', tags_string) # Divide capitalized, for example "VehiclesDinosaurs" becomes [ "Vehicles", "Dinosaurs"]
 
@@ -83,7 +86,6 @@ def main():
 	add_transitions(qe_project)
 	remove_empty_tracks(qe_project)
 	set_in_out_point(project.activeSequence)
-	# Exporting
 	send_sequence_to_media_encoder(project)
 	save_and_close_project(project)
 	print("---FINISHED---")
@@ -350,7 +352,7 @@ def send_sequence_to_media_encoder(project):
 	output_path = output_path.replace("Compilations", "FINALS")
 	pattern = r'_v\d+_.+\..+$' #pattern = r'_([^_]+)_v\d+_.+\..+$'
 	output_path = re.sub(pattern, ".mp4", output_path)
-	preset_path = PRESET_PATH_FINAL
+	preset_path = convert_path(PRESET_PATH_FINAL)
 	print(f"- Destination: {output_path}")
 	print(f"- Using preset: {preset_path}")
 	# ensure Media Encoder is started
@@ -372,6 +374,40 @@ def save_and_close_project(project):
 	project.save()
 	print("Closing project...")
 	project.closeDocument()
+
+def convert_path(path):
+    system = platform.system()
+    
+    # Define mappings for special drive paths
+    drive_map = {
+        "Y": "megagamma_data",
+        "Z": "omicron_data"
+    }
+    volume_map = {v: k for k, v in drive_map.items()}  # Reverse mapping for macOS to Windows
+
+    if system == "Windows":
+        # Convert macOS path to Windows format
+        if path.startswith("/Volumes/"):
+            volume_name = path.split("/")[2]
+            drive_letter = volume_map.get(volume_name, volume_name[0].upper())
+            windows_path = f"{drive_letter}:\\" + "\\".join(path.split("/")[3:])
+            print("Converted path to Windows format:", windows_path)
+            return windows_path
+
+    elif system == "Darwin":  # macOS
+        # Convert Windows path to macOS format
+        if ":" in path:
+            drive_letter = path[0].upper()
+            volume_name = drive_map.get(drive_letter, drive_letter)
+            mac_path = f"/Volumes/{volume_name}/" + "/".join(path.split("\\")[1:])
+            print("Converted path to macOS format:", mac_path)
+            return mac_path
+
+    else:
+        raise OSError("Unsupported operating system")
+
+    # If no conversion is needed, return the original path
+    return path
 
 # Run main function
 main()
