@@ -1,4 +1,4 @@
-import pathlib
+from pathlib import Path
 import pymiere
 from pymiere.wrappers import time_from_seconds
 from array import array
@@ -24,16 +24,20 @@ def main():
 	print("---FINISHED---")
 
 def find_renders_server_folder(project):
-	print("Finding '" + server_folder_name + "' folder on server...")
+	print(f"Finding '{server_folder_name}' folder on server...")
 	# Split the path into parts based on '/'
-	path_parts = project.path.split('/')
+	prem_project_path = Path(project.path)
+	prem_project_folder = prem_project_path.parent.parent
+	print(f"FOLDER? {prem_project_folder}")
+	# path_parts = prem_project_path.split('/')
 	# Construct the new path by joining the necessary parts
-	path = '/'.join(path_parts[:-2]) + '/' + server_folder_name
-	print("'" + server_folder_name + "' path: " + path)
+	# path = '/'.join(path_parts[:-2]) + '/' + server_folder_name
+	path = prem_project_folder.joinpath(server_folder_name)
+	print(f"'{server_folder_name}' path: {path}")
 	return path
 
 def find_or_create_renders_premiere_bin(project):
-	print("Finding '" + prem_bin_name + "' bin in Premiere project...")
+	print(f"Finding '{prem_bin_name}' bin in Premiere project...")
 	found_bin = False
 	for i in range(project.rootItem.children.numItems):
 		item = project.rootItem.children[i]
@@ -45,12 +49,12 @@ def find_or_create_renders_premiere_bin(project):
 			found_bin = True
 			return item
 	if not found_bin:
-		print("'" + prem_bin_name + "' not found, creating it.")
+		print(f"'{prem_bin_name}' not found, creating it.")
 		project.rootItem.createBin(prem_bin_name)
 		return find_or_create_renders_premiere_bin(project)
 
 def get_paths(bin):
-	print("Getting paths of items inside '" + bin.name + "'...")
+	print(f"Getting paths of items inside '{bin.name}'...")
 	paths = []
 	for i in range(bin.children.numItems):
 		item = bin.children[i]
@@ -112,7 +116,7 @@ def get_first_image_files(directory):
 	- List of paths to the first image file from each subdirectory and its subdirectories.
 	"""
 	first_files = []
-	root_path = pathlib.Path(directory)
+	root_path = Path(directory)
 	
 	for subfolder in root_path.rglob('*'):
 		if subfolder.is_dir():
@@ -136,7 +140,7 @@ def is_premiere_ready():
 	return is_ready
 
 def import_as_image_sequences(project, bin, file_paths):
-	print("Importing " + str(len(file_paths)) + " image sequences...")
+	print(f"Importing {str(len(file_paths))} image sequences...")
 	for file in file_paths:
 		print("Importing " + file)
 		this_file = []  # Array with a single file, because we want to import it as an image sequence.
