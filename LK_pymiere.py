@@ -1,10 +1,14 @@
 import pymiere
+import re  # For regex operations
+import platform  # For checking the operating system
+import os  # For file path operations
 import xml.etree.ElementTree as ET  # For parsing the XML metadata
 from pathlib import Path
 
 AUDIO_FOLDER_NAME = "AUDIO"
 RENDERS_FOLDER_NAME = "RENDERS"
 TRASH_FOLDER_NAME = "TRASH"
+PRESET_PATH_FINAL = "/Volumes/megagamma_data/Club Baboo/Resources/AdobeMediaEncoder/Presets/YouTube 1080p HD.epr" # <-- /Users/'yourname'/Documents/Adobe/Adobe Media Encoder/25.0/Presets
 
 def is_premiere_ready():
 	print("Checking if Premiere is ready...")
@@ -55,7 +59,7 @@ def delete_empty_bins(project):
 			item.moveBin(trash_bin)
 
 # Function to get all items in the project, starting from the root
-def get_all_project_items():
+def get_all_project_items(project):
 	return get_child_items(project.rootItem)
 
 # Function to check if a project item is used (via VideoUsage and AudioUsage)
@@ -166,3 +170,72 @@ def move_root_wav_files_to_audio_bin(project, target_bin):
 def get_project():
 	print("Getting 'project'...")
 	return pymiere.objects.app.project  # get premiere project
+
+def send_sequence_to_media_encoder(project):
+	print("Sending sequence to Adobe Media Encoder...")
+	output_path = project.path
+	output_path = output_path.replace("Compilations", "FINALS")
+	pattern = r'_v\d+_.+\..+$' #pattern = r'_([^_]+)_v\d+_.+\..+$'
+	output_path = re.sub(pattern, ".mp4", output_path)
+	preset_path = convert_path(PRESET_PATH_FINAL)
+	print(f"- Destination: {output_path}")
+	print(f"- Using preset: {preset_path}")
+	# ensure Media Encoder is started
+	pymiere.objects.app.encoder.launchEncoder()
+	# add sequence to Media Encoder queue
+	job_id = pymiere.objects.app.encoder.encodeSequence(
+	    project.activeSequence,
+	    output_path,  # path of the exported file
+	    preset_path,  # path of the export preset file
+	    pymiere.objects.app.encoder.ENCODE_IN_TO_OUT,  # what part of the sequence to export: ENCODE_ENTIRE / ENCODE_IN_TO_OUT / ENCODE_WORKAREA
+	    removeOnCompletion=False,  # clear this job of media encoder render queue on completion
+	    startQueueImmediately=False  # seem not to be working in Premiere 2017? Untested on versions above
+	)
+	# press green play button in the queue list to start encoding everything
+	pymiere.objects.app.encoder.startBatch()
+
+def convert_path(path):
+    system = platform.system()
+    # Define mappings for special drive paths
+    drive_map = {
+        "Y": "megagamma_data",
+        "Z": "omicron_data"
+    }
+    volume_map = {v: k for k, v in drive_map.items()}  # Reverse mapping for macOS to Windows
+    if system == "Windows":
+        # Convert macOS path to Windows format
+        if path.startswith("/Volumes/"):
+            volume_name = path.split("/")[2]
+            drive_letter = volume_map.get(volume_name, volume_name[0].upper())
+            windows_path = f"{drive_letter}:\\" + "\\".join(path.split("/")[3:])
+            print("Converted path to Windows format:", windows_path)
+            return windows_path
+    elif system == "Darwin":  # macOS
+        # Convert Windows path to macOS format
+        if ":" in path:
+            drive_letter = path[0].upper()
+            volume_name = drive_map.get(drive_letter, drive_letter)
+            mac_path = f"/Volumes/{volume_name}/" + "/".join(path.split("\\")[1:])
+            print("Converted path to macOS format:", mac_path)
+            return mac_path
+    else:
+        raise OSError("Unsupported operating system")
+    # If no conversion is needed, return the original path
+    return path
+
+def save_and_close_project(project):
+	print("Saving project...")
+	project.save()
+	print("Closing project...")
+	project.closeDocument()
+
+def set_in_out_point(sequence):
+	print("Setting in/out points for sequence...")
+	sequence.setInPoint(0)
+	sequence.setOutPoint(sequence.end)
+
+def remove_empty_tracks(qe_project):
+	print("Removing empty tracks from sequence...")
+	qe_sequence = qe_project.getActiveSequence()
+	qe_sequence.removeEmptyVideoTracks()
+	qe_sequence.removeEmptyAudioTracks()
