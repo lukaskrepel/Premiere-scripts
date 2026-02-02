@@ -29,16 +29,17 @@ ALL_TAGS = "GenericAnimalsDinosaursVehiclesSongsHalloweenChristmasEasterNewyearD
 MUSIC_PATH = "Y:\Club Baboo\Audio\music\Daan\Sketches_Score_EndlessLoop.wav"
 
 TARGET_AGE = 0
-TARGET_AGE_RANGE = "1-4" # Use this, only if TARGET_AGE is set to 0
+TARGET_AGE_RANGE = 0 #"All" # "1-4" # Use this, only if TARGET_AGE is set to 0
 TARGET_HOURS = 1
 MAX_CONSECUTIVE_SKETCHES = 3 # Maximum number of consecutive sketches allowed
 
 # premiere uses ticks as its base time unit, this is used to convert from ticks to seconds
 TICKS_PER_SECONDS = 254016000000
 
+# BACKUP OLD WEIGHTS
 # Define the weights for each category
 CATEGORY_WEIGHTS = {
-	'DinoFacts': 2,
+	'DinoFacts': 0.5,
 	'Sketches': 0.6,
 	'MagicShow': 0.6,
 	'Construction': 0.5,
@@ -58,6 +59,28 @@ CATEGORY_WEIGHTS = {
 	'Colors': 0.1
 }
 DEFAULT_WEIGHT = 0.1
+
+# CATEGORY_WEIGHTS = {
+# 	'DinoFacts': 0.5,
+# 	'Sketches': 99,
+# 	'MagicShow': 0.5,
+# 	'Construction': 0.5,
+# 	'DinoDayCare': 0,
+# 	'BabyMatch': 0,
+# 	'Bones': 0.5,
+# 	'Alphabet': 0,
+# 	'MysteryAnimals': 0.0,
+# 	'BarnDoors': 0.0,
+# 	'CarWash': 0.0,
+# 	'AnimalSounds': 0.0,
+# 	'Wrong Heads': 0.0,
+# 	'Drawing and Coloring': 0.0,
+# 	'Memory': 0.0,
+# 	'Puzzle': 0.0,
+# 	'Counting': 0.0,
+# 	'Colors': 0.0
+# }
+# DEFAULT_WEIGHT = 0.1
 
 # Define a mapping of categories to color labels
 CATEGORY_COLOR_LABELS = {
@@ -106,10 +129,10 @@ def main():
 	###
 	# read csv file:
 	videos = get_videos_from_csv(project)
-	if TARGET_AGE != 0:
-		videos = filter_videos_by_target_age(videos, TARGET_AGE)
-	else:
-		videos = filter_videos_by_target_age_range(videos, TARGET_AGE_RANGE)
+	# if TARGET_AGE != 0:
+	# 	videos = filter_videos_by_target_age(videos, TARGET_AGE)
+	# else:
+	# 	videos = filter_videos_by_target_age_range(videos, TARGET_AGE_RANGE)
 	# playlist = create_playlist(videos)
 	playlist = create_playlist(videos, first_video_code, 60*60*TARGET_HOURS)
 	sequence = create_sequence_from_playlist(project, playlist)
